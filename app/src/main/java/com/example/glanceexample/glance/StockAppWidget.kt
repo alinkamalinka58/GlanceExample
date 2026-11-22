@@ -1,7 +1,9 @@
 package com.example.glanceexample.glance
 
 import android.content.Context
+import androidx.compose.material3.ShapeDefaults.Small
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -20,6 +22,24 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Duration
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.sp
+import androidx.glance.Image
+import androidx.glance.ImageProvider
+import androidx.glance.LocalSize
+import androidx.glance.text.FontWeight
+import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.cornerRadius
+import com.example.glanceexample.R
+import java.util.Locale
 
 class StockAppWidget : GlanceAppWidget() {
     private var job: Job? = null
@@ -35,6 +55,37 @@ class StockAppWidget : GlanceAppWidget() {
         }
     }
 
+    override val sizeMode = SizeMode.Responsive(
+        setOf(
+            DpSize(100.dp, 50.dp),   // small
+            DpSize(200.dp, 100.dp)   // medium
+        )
+    )
+
+    @Composable
+    private fun StockDisplay(stateCount: Float) {
+        val color = if (PriceDataRepo.change > 0) {
+            GlanceTheme.colors.primary
+        } else {
+            GlanceTheme.colors.error
+        }
+        val textStyle = TextStyle(
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+
+        Text(
+            PriceDataRepo.ticker,
+            style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        )
+        Text(
+            text = String.format(Locale.getDefault(), "%.2f", stateCount),
+            style = textStyle
+        )
+        Text("${PriceDataRepo.change} %", style = textStyle)
+    }
+
     private fun startUpdateJob(timeInterval: Long, context: Context): Job {
         return CoroutineScope(Dispatchers.Default).launch {
             while (true) {
@@ -47,13 +98,47 @@ class StockAppWidget : GlanceAppWidget() {
 
     @Composable
     fun GlanceContent() {
+        val stateCount by PriceDataRepo.currentPrice.collectAsState()
+        val size = LocalSize.current
+
+        if (size.width < 150.dp) {
+            Small(stateCount)
+        } else {
+            Medium(stateCount)
+        }
+    }
+    @Composable
+    private fun Small(stateCount: Float) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(GlanceTheme.colors.background)
                 .padding(8.dp)
         ) {
-            Text("Demo")
+            StockDisplay(stateCount)
+        }
+    }
+
+    @Composable
+    private fun Medium(stateCount: Float) {
+        Column(
+            horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .cornerRadius(15.dp)
+                .background(GlanceTheme.colors.background)
+                .padding(8.dp)
+        ) {
+            StockDisplay(stateCount)
+            Image(
+                provider = ImageProvider(
+                    if (PriceDataRepo.change > 0) R.drawable.up_arrow else R.drawable.down_arrow
+                ),
+                contentDescription = "Arrow Image",
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+            )
         }
     }
 }
